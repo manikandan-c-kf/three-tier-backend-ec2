@@ -2,39 +2,46 @@ version: 0.2
 
 phases:
   install:
-    commands:
-      - echo "Installing PHP dependencies..."
+    runtime-versions:
+      php: 8.1 # Updated PHP version to 8.1
 
   pre_build:
     commands:
-      - echo Build completed on `date`
-      - echo Pushing Docker image to ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
-      - REPOSITORY_URI = "767397811981.dkr.ecr.us-east-1.amazonaws.com/ec2-repo-three-tier"
-      - AWS_DEFAULT_REGION = "us-east-1"
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      # Login to Elastic Container Registry (ECR), specifying the region
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 767397811981.dkr.ecr.us-east-1.amazonaws.com
+      - REPOSITORY_URI=767397811981.dkr.ecr.us-east-1.amazonaws.com/ec2-repo-three-tier
+      # Specify the image tag (you can dynamically generate version tags as well if needed)
+      - IMAGE_TAG=1.0
 
   build:
     commands:
-      - echo "Preparing application for deployment..."
+      - echo Build started on `date`
+      - echo Installing composer...
+      - composer install
+      - echo Creating .env file...
+      - cp .env.example .env
+      - echo Generating app key...
+      - php artisan key:generate
+      - php artisan cache:clear
+      - php artisan config:clear
+      - php artisan migrate --force
+      - echo Building the Docker image...
       - docker build -t $REPOSITORY_URI:latest .
+      - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo "Running any additional tasks after the build"
-      - docker push $REPOSITORY_URI:latest
-      - printf '[{"name":"backend-repo","imageUri":"%s"}]' $REPOSITORY_URI:latest > imagedefinitions.json
-      - cat imagedefinitions.json
+      - echo Build completed on `date`
+      - echo Pushing the Docker image to ECR...
+      - docker image ls -a
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
 
 artifacts:
   files:
     - '**/*'
-    - imagedefinitions.json
 
 cache:
   paths:
     - vendor/**/*
-
-cache:
-  paths:
-    - vendor/**/*
-    - node_modules/**/*
