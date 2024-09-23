@@ -1,0 +1,40 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo "Installing PHP dependencies..."
+
+  pre_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing Docker image to ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPOSITORY_URI
+      - REPOSITORY_URI = "767397811981.dkr.ecr.us-east-1.amazonaws.com/ec2-repo-three-tier"
+      - AWS_DEFAULT_REGION = "us-east-1"
+
+  build:
+    commands:
+      - echo "Preparing application for deployment..."
+      - docker build -t $REPOSITORY_URI:latest .
+
+  post_build:
+    commands:
+      - echo "Running any additional tasks after the build"
+      - docker push $REPOSITORY_URI:latest
+      - printf '[{"name":"backend-repo","imageUri":"%s"}]' $REPOSITORY_URI:latest > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - '**/*'
+    - imagedefinitions.json
+
+cache:
+  paths:
+    - vendor/**/*
+
+cache:
+  paths:
+    - vendor/**/*
+    - node_modules/**/*
