@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      php: 8.1 # Updated PHP version to 8.1
+      php: 8.1 # Use the PHP 8.1 runtime provided by CodeBuild
 
   pre_build:
     commands:
